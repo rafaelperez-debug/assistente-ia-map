@@ -1,0 +1,11 @@
+[
+  {
+    "client": "Start TI",
+    "rules": "company_rules.json",
+    "type": "replanejamento",
+    "q": "Resumo do replanejamento mais recente e impacto em KPIs (gasto, leads, CPL).",
+    "take": 1,
+    "google_csv": "",
+    "meta_csv": ""
+  }
+]

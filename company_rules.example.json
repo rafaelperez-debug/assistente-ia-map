@@ -1,0 +1,49 @@
+{
+  "org_name": "SUA_ORG_AQUI",
+  "clients": {
+    "ACME": ["ACME", "ACME Corp", "ACME Marketing"]
+  },
+  "naming": {
+    "daily": {
+      "tokens": ["Daily"],
+      "mimeTypes": ["application/vnd.google-apps.document"],
+      "folder_names": ["Daily Operacional", "Daily"]
+    },
+    "weekly": {
+      "tokens": ["Weekly"],
+      "mimeTypes": ["application/vnd.google-apps.document"],
+      "folder_names": ["Weekly de Alta Performance", "Weekly"]
+    },
+    "checkin": {
+      "tokens": ["Check-in"],
+      "mimeTypes": ["application/vnd.google-apps.presentation"],
+      "folder_names": ["Check-in", "04 - Check-in"]
+    },
+    "planejamento": {
+      "tokens": ["Planejamento"],
+      "mimeTypes": ["application/vnd.google-apps.document"],
+      "folder_names": ["02 - Planejamento", "Planejamento"]
+    },
+    "replanejamento": {
+      "tokens": ["Replanejamento"],
+      "mimeTypes": [
+        "application/vnd.google-apps.document",
+        "application/vnd.google-apps.presentation"
+      ],
+      "folder_names": ["02 - Planejamento", "Replanejamento"]
+    },
+    "benchmarking": {
+      "tokens": ["Benchmark", "Concorrentes"],
+      "mimeTypes": ["application/vnd.google-apps.document"],
+      "folder_names": ["02 - Planejamento", "Benchmark"]
+    }
+  },
+  "synonyms": {
+    "daily": ["diária", "reunião diária", "daily"],
+    "weekly": ["weekly", "wk", "semanal"],
+    "checkin": ["check-in", "checkin", "check in"],
+    "planejamento": ["planejamento", "plano", "estratégia"],
+    "replanejamento": ["replanejamento", "revisão do plano", "revisão de estratégia"],
+    "benchmarking": ["benchmark", "concorrentes", "competitive analysis"]
+  }
+}

@@ -1,0 +1,58 @@
+openapi: 3.1.0
+info:
+  title: Assistente de Dados Runner
+  version: "1.0.0"
+servers:
+  - url: https://SEU_HOST_OU_CLOUDRUN/run
+paths:
+  /run:
+    post:
+      operationId: runPipeline
+      summary: Executa o pipeline e retorna o relatório mais recente do cliente
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client:
+                  type: string
+                  description: Nome do cliente
+                q:
+                  type: string
+                  description: Pergunta (ex.: resumo executivo com KPIs)
+                take:
+                  type: integer
+                  default: 1
+                type:
+                  type: string
+                  description: Tipo (opcional; o roteador detecta)
+                google_csv_url:
+                  type: string
+                  description: URL de CSV de Google Ads (opcional)
+                meta_csv_url:
+                  type: string
+                  description: URL de CSV de Meta Ads (opcional)
+              required: [client, q]
+      responses:
+        "200":
+          description: Resultado do pipeline
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  client: { type: string }
+                  report_path: { type: string }
+                  markdown: { type: string }
+                  stdout: { type: string }
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
