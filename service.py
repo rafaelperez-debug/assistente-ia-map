@@ -1,27 +1,30 @@
 # service.py
-from fastapi.middleware.cors import CORSMiddleware
+from __future__ import annotations
 
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import subprocess, sys, os, re, tempfile, urllib.request, shutil
+
+# --- Configurações globais ---
+PY = sys.executable
+API_KEY = os.getenv("SERVICE_API_KEY", "")  # defina uma chave
+
+# --- Inicialização do app ---
 app = FastAPI(title="Assistente de Dados Runner", version="1.0.0")
 
 # --- CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # pode restringir para a URL do Gemini se quiser
+    allow_origins=["*"],  # pode restringir para ["https://aistudio.google.com"] se quiser
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-from __future__ import annotations
-from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel
-import subprocess, sys, os, re, tempfile, urllib.request, shutil
-
-PY = sys.executable
-API_KEY = os.getenv("SERVICE_API_KEY", "")  # defina uma chave
-
+# --- Funções utilitárias ---
 def slugify(s: str) -> str:
-    return re.sub(r"\W+","_", s, flags=re.UNICODE).strip("_").lower() or "cliente"
+    return re.sub(r"\W+", "_", s, flags=re.UNICODE).strip("_").lower() or "cliente"
 
 def download_to_tmp(url: str) -> str:
     tf = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
@@ -29,6 +32,7 @@ def download_to_tmp(url: str) -> str:
         shutil.copyfileobj(r, f)
     return tf.name
 
+# --- Modelo de requisição ---
 class RunReq(BaseModel):
     client: str
     q: str
@@ -37,8 +41,7 @@ class RunReq(BaseModel):
     google_csv_url: str | None = None
     meta_csv_url: str | None = None
 
-app = FastAPI(title="Assistente de Dados Runner", version="1.0.0")
-
+# --- Rotas ---
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
@@ -56,10 +59,16 @@ def run(req: RunReq, x_api_key: str = Header(default="")):
         if req.meta_csv_url:
             tmp_m = download_to_tmp(req.meta_csv_url)
 
-        cmd = [PY, "assistant_cli.py", "--client", req.client, "--q", req.q, "--take", str(req.take or 1)]
-        if tmp_g: cmd += ["--google_csv", tmp_g]
-        if tmp_m: cmd += ["--meta_csv", tmp_m]
-        # type é opcional; o assistant_cli roteia sozinho. Se quiser forçar, acrescente a lógica aqui.
+        cmd = [
+            PY, "assistant_cli.py",
+            "--client", req.client,
+            "--q", req.q,
+            "--take", str(req.take or 1)
+        ]
+        if tmp_g:
+            cmd += ["--google_csv", tmp_g]
+        if tmp_m:
+            cmd += ["--meta_csv", tmp_m]
 
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode != 0:
@@ -72,9 +81,17 @@ def run(req: RunReq, x_api_key: str = Header(default="")):
             with open(latest, "r", encoding="utf-8") as f:
                 md = f.read()
 
-        return {"ok": True, "client": req.client, "report_path": latest, "markdown": md, "stdout": proc.stdout}
+        return {
+            "ok": True,
+            "client": req.client,
+            "report_path": latest,
+            "markdown": md,
+            "stdout": proc.stdout
+        }
     finally:
         for p in [tmp_g, tmp_m]:
             if p and os.path.exists(p):
-                try: os.remove(p)
-                except: pass
+                try:
+                    os.remove(p)
+                except:
+                    pass
