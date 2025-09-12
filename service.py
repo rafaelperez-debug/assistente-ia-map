@@ -1,4 +1,17 @@
 # service.py
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="Assistente de Dados Runner", version="1.0.0")
+
+# --- CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # pode restringir para a URL do Gemini se quiser
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 from __future__ import annotations
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
