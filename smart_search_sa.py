@@ -11,15 +11,19 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from google.oauth2.service_account import Credentials
 
+# -------------------- auth --------------------
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-CREDS_PATH = "credentials.json"
 
+def service_sa():
+    """Constroi cliente Drive usando Service Account carregada da variável de ambiente GOOGLE_SERVICE_ACCOUNT_JSON."""
+    service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+    return build("drive", "v3", credentials=creds)
 
 # -------------------- utils --------------------
 def esc(s: str) -> str:
     """Escapa aspas simples para usar em queries do Drive."""
     return s.replace("'", "\\'")
-
 
 def sanitize(name: str, max_len=120) -> str:
     """Sanitiza nomes de arquivo para Windows/macOS."""
@@ -27,20 +31,12 @@ def sanitize(name: str, max_len=120) -> str:
     name = re.sub(r"\s+", " ", name).strip().rstrip(". ")
     return name[:max_len]
 
-
 def load_rules(path: str) -> dict:
     """Carrega regras de nomeclatura/pastas/sinônimos por empresa."""
     if not os.path.exists(path):
         raise SystemExit(f"Arquivo de regras não encontrado: {path}")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
-
-
-def service_sa():
-    """Constroi cliente Drive usando Service Account."""
-    creds = Credentials.from_service_account_file(CREDS_PATH, scopes=SCOPES)
-    return build("drive", "v3", credentials=creds)
-
 
 def drive_search(service, q: str, page_size=25, order="modifiedTime desc") -> List[dict]:
     """Wrapper do files.list com campos úteis e suporte a Shared Drives."""
@@ -57,7 +53,6 @@ def drive_search(service, q: str, page_size=25, order="modifiedTime desc") -> Li
     ).execute()
     return resp.get("files", [])
 
-
 def find_folders_by_names(service, names: List[str]) -> List[str]:
     """Retorna IDs de pastas que contenham os nomes informados."""
     ids = []
@@ -68,9 +63,7 @@ def find_folders_by_names(service, names: List[str]) -> List[str]:
         )
         for f in drive_search(service, q, page_size=10):
             ids.append(f["id"])
-    # remove duplicados preservando ordem
-    return list(dict.fromkeys(ids))
-
+    return list(dict.fromkeys(ids))  # remove duplicados preservando ordem
 
 # -------------------- core: passes de busca --------------------
 def search_passes(
@@ -95,7 +88,6 @@ def search_passes(
     folders: List[str] = nm.get("folder_names", [])
     syns: List[str] = rules.get("synonyms", {}).get(type_key, [])
 
-    # filtro de mime
     mime_q = ""
     if mimes:
         parts = [f"mimeType = '{esc(mt)}'" for mt in mimes]
@@ -103,13 +95,13 @@ def search_passes(
 
     results: List[dict] = []
 
-    # 1) nome oficial (todos tokens)
+    # 1) nome oficial
     must = [f"name contains '{esc(client)}'"] + [f"name contains '{esc(t)}'" for t in tokens]
     if must:
         q1 = f"{mime_q}{' and '.join(must)} and trashed=false"
         results += drive_search(service, q1, page_size=page_size)
 
-    # 2) parcial (qualquer token)
+    # 2) parcial
     if not results and tokens:
         anytok = " or ".join([f"name contains '{esc(t)}'" for t in tokens])
         q2 = f"{mime_q}name contains '{esc(client)}' and ({anytok}) and trashed=false"
@@ -120,9 +112,7 @@ def search_passes(
         folder_ids = find_folders_by_names(service, folders)
         if folder_ids:
             parents_q = " or ".join([f"'{fid}' in parents" for fid in folder_ids])
-            anytok = (
-                " or ".join([f"name contains '{esc(t)}'" for t in tokens]) if tokens else "name contains ''"
-            )
+            anytok = " or ".join([f"name contains '{esc(t)}'" for t in tokens]) if tokens else "name contains ''"
             q3 = f"{mime_q}({parents_q}) and name contains '{esc(client)}' and ({anytok}) and trashed=false"
             results += drive_search(service, q3, page_size=page_size)
 
@@ -132,7 +122,7 @@ def search_passes(
         q4 = f"{mime_q}name contains '{esc(client)}' and ({anysyn}) and trashed=false"
         results += drive_search(service, q4, page_size=page_size)
 
-    # 5) fullText (último fallback)
+    # 5) fullText
     if not results:
         key_terms = tokens or syns or [type_key]
         anytxt = " or ".join([f"fullText contains '{esc(t)}'" for t in key_terms])
@@ -141,7 +131,6 @@ def search_passes(
 
     return results
 
-
 # -------------------- export/download --------------------
 def export_or_download(service, file_id: str, mime_type: str, kind: str = "txt") -> tuple[bytes, str]:
     """
@@ -149,11 +138,9 @@ def export_or_download(service, file_id: str, mime_type: str, kind: str = "txt")
     Faz download direto para binários. Retorna (bytes, ext).
     """
     import mimetypes
-
     if mime_type.startswith("application/vnd.google-apps."):
         if kind == "txt":
             mime, ext = "text/plain", "txt"
-            # Heurística: para Sheets, prefira CSV se usuário pediu txt
             if "spreadsheet" in mime_type:
                 mime, ext = "text/csv", "csv"
         elif kind == "csv":
@@ -174,7 +161,6 @@ def export_or_download(service, file_id: str, mime_type: str, kind: str = "txt")
     while not done:
         _, done = dl.next_chunk()
     return buf.getvalue(), ext
-
 
 # -------------------- CLI --------------------
 def main():
@@ -224,7 +210,6 @@ def main():
         print("Salvo:", out_path)
         if ext in {"txt", "csv"}:
             print("Dica: rode  python .\\ingest_txt.py  para o RAG ver esse conteúdo.")
-
 
 if __name__ == "__main__":
     main()

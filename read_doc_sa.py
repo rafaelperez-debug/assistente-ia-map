@@ -1,32 +1,39 @@
-from __future__ import annotations
-import io, os, argparse
+import os
+import json
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
-from google.oauth2.service_account import Credentials
+from google.oauth2 import service_account
 
-SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-CREDS_PATH = "credentials.json"
+# Escopo necessário para acessar Documentos do Google
+SCOPES = ["https://www.googleapis.com/auth/documents.readonly"]
 
-def export_doc(file_id: str) -> None:
-    creds = Credentials.from_service_account_file(CREDS_PATH, scopes=SCOPES)
-    service = build("drive", "v3", credentials=creds)
-    request = service.files().export_media(fileId=file_id, mimeType="text/plain")
-    buf = io.BytesIO()
-    downloader = MediaIoBaseDownload(buf, request)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-    text = buf.getvalue().decode("utf-8", errors="ignore")
+def authenticate_docs():
+    """
+    Autentica no Google Docs usando a variável de ambiente GOOGLE_SERVICE_ACCOUNT_JSON.
+    """
+    service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    creds = service_account.Credentials.from_service_account_info(
+        service_account_info, scopes=SCOPES
+    )
+    service = build("docs", "v1", credentials=creds)
+    return service
 
-    os.makedirs("data/raw", exist_ok=True)
-    out_path = os.path.join("data", "raw", f"{file_id}.txt")
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(text)
+def read_doc(document_id):
+    """
+    Lê o conteúdo de um documento Google Docs pelo ID.
+    """
+    service = authenticate_docs()
+    doc = service.documents().get(documentId=document_id).execute()
 
-    print(f"Salvo: {out_path}\n--- Preview ---\n{(text[:800] if text else '[vazio]')}")
+    print(f"Título do Documento: {doc.get('title')}\n")
+
+    content = doc.get("body", {}).get("content", [])
+    for element in content:
+        if "paragraph" in element:
+            for text_run in element["paragraph"].get("elements", []):
+                if "textRun" in text_run:
+                    print(text_run["textRun"].get("content", ""), end="")
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--id", required=True, help="ID do arquivo Google Docs")
-    args = ap.parse_args()
-    export_doc(args.id)
+    # Exemplo de uso: substituir pelo ID do seu documento
+    doc_id = "COLOQUE_O_ID_DO_DOCUMENTO_AQUI"
+    read_doc(doc_id)
