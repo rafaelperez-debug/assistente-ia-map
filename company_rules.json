@@ -3,6 +3,10 @@
   "clients": {
     "Start TI": ["Start TI", "StartTI", "Start Tecnologia"]
   },
+  "drive": {
+    "folders": ["1496taBvvCfuY-oci3EAtb50V5zHsZZGi"],
+    "include": ["gdoc", "gsheet", "*.md", "*.txt", "*.csv"]
+  },
   "naming": {
     "daily": {
       "tokens": ["MAP", "Daily"],
@@ -26,7 +30,10 @@
     },
     "replanejamento": {
       "tokens": ["MAP", "Replanejamento"],
-      "mimeTypes": ["application/vnd.google-apps.document", "application/vnd.google-apps.presentation"],
+      "mimeTypes": [
+        "application/vnd.google-apps.document",
+        "application/vnd.google-apps.presentation"
+      ],
       "folder_names": ["02 - Planejamento", "Replanejamento", "Revisão de Estratégia"]
     },
     "benchmarking": {
