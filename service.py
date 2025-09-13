@@ -1,10 +1,19 @@
-# service.py
 from __future__ import annotations
 
+# FastAPI e utilidades
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import subprocess, sys, os, re, tempfile, urllib.request, shutil, glob
+
+import subprocess
+import sys
+import os
+import re
+import tempfile
+import urllib.request
+import shutil
+import glob
 
 # --- Configurações globais ---
 PY = sys.executable
@@ -36,6 +45,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Servir arquivos estáticos ---
+# Crie um diretório chamado "web" na raiz do projeto e coloque seu chat.html e scripts lá.
+STATIC_DIR = os.path.join(ROOT, "web")
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 # --- Funções utilitárias ---
 def slugify(s: str) -> str:
     return re.sub(r"\W+", "_", s, flags=re.UNICODE).strip("_").lower() or "cliente"
@@ -47,7 +62,7 @@ def download_to_tmp(url: str) -> str:
     return tf.name
 
 def latest_md_for(client_slug: str) -> tuple[str | None, str]:
-    """Retorna (caminho, conteúdo) do .md mais recente em reports/<slug>."""
+    """Retorna (caminho, conteúdo) do .md mais recente em reports/ ."""
     rep_dir = os.path.join(ROOT, "reports", client_slug)
     if not os.path.isdir(rep_dir):
         return None, ""
@@ -61,7 +76,7 @@ def latest_md_for(client_slug: str) -> tuple[str | None, str]:
     except Exception:
         return newest, ""
 
-# --- Modelo de requisição ---
+# --- Modelos de requisição ---
 class RunReq(BaseModel):
     client: str
     q: str
@@ -70,14 +85,24 @@ class RunReq(BaseModel):
     google_csv_url: str | None = None
     meta_csv_url: str | None = None
 
-# --- Rotas ---
+class ChatReq(BaseModel):
+    client: str
+    q: str
+
+# --- Rotas básicas ---
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
+
 @app.get("/")
 def root():
-    return {"ok": True, "service": "Assistente de Dados Runner"}
+    return {
+        "ok": True,
+        "service": "Assistente de Dados Runner",
+        "docs": "Para conversar, acesse /static/chat.html (se configurado) ou use o endpoint /chat",
+    }
 
+# --- Rota para geração de relatórios executivos (fluxo completo) ---
 @app.post("/run")
 def run(req: RunReq, x_api_key: str | None = Header(None)):
     if API_KEY and x_api_key != API_KEY:
@@ -104,7 +129,7 @@ def run(req: RunReq, x_api_key: str | None = Header(None)):
             cmd += ["--type", req.type.strip().lower()]
 
         if tmp_g:
-            cmd += ["--google_csv", tmp_g]  # mantenho o formato com _ para compatibilidade
+            cmd += ["--google_csv", tmp_g]
         if tmp_m:
             cmd += ["--meta_csv", tmp_m]
 
@@ -132,3 +157,37 @@ def run(req: RunReq, x_api_key: str | None = Header(None)):
                     os.remove(p)
                 except Exception:
                     pass
+
+# --- Rota de chat simples ---
+@app.post("/chat")
+def chat(req: ChatReq, x_api_key: str | None = Header(None)):
+    """
+    Endpoint para perguntas avulsas. Retorna a resposta em texto.
+    Exemplo de uso:
+      POST /chat
+      {
+        "client": "ai_studio",
+        "q": "Qual é o status do projeto X?"
+      }
+    """
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="invalid api key")
+
+    q = (req.q or "").strip()
+    if not q:
+        return {"reply": "Pergunta vazia."}
+
+    # chama o script ask_with_context.py para responder
+    script_path = os.path.join(ROOT, "ask_with_context.py")
+    cmd = [PY, script_path, "--q", q]
+    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+
+    # resposta é o stdout do script; se vazio, mostra mensagem padrão
+    answer = proc.stdout.strip() or "Não há resposta disponível."
+    return {
+        "client": slugify(req.client),
+        "query": q,
+        "reply": answer,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+    }
