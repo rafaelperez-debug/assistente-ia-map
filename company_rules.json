@@ -43,11 +43,11 @@
     }
   },
   "synonyms": {
-    "daily": ["diária", "reunião diária", "daily"],
-    "weekly": ["weekly", "wk", "semanal"],
+    "daily": ["diária", "reunião diária", "daily", "diario"],
+    "weekly": ["weekly", "wk", "semanal", "reunião semanal", "semana"],
     "checkin": ["check-in", "checkin", "check in"],
     "planejamento": ["planejamento", "plano", "estratégia"],
     "replanejamento": ["replanejamento", "revisão do plano", "revisão de estratégia"],
-    "benchmarking": ["benchmark", "concorrentes", "competitive analysis"]
+    "benchmarking": ["benchmark", "concorrentes", "competitive analysis", "análise competitiva"]
   }
 }
