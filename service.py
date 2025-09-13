@@ -191,3 +191,39 @@ def chat(req: ChatReq, x_api_key: str | None = Header(None)):
         "stdout": proc.stdout,
         "stderr": proc.stderr,
     }
+# --- INGEST ROUTE (append at end) ---
+from pydantic import BaseModel
+from fastapi import Header
+import os, subprocess, sys
+
+SERVICE_API_KEY = os.getenv("SERVICE_API_KEY", "")
+PY = sys.executable
+
+class IngestReq(BaseModel):
+    client: str
+    types: list[str] | None = None   # ex: ["daily","weekly"]
+    export: str | None = "txt"       # "txt" ou "csv"
+
+@app.post("/ingest")
+def ingest(req: IngestReq, x_api_key: str | None = Header(default=None)):
+    if SERVICE_API_KEY and x_api_key != SERVICE_API_KEY:
+        raise HTTPException(status_code=401, detail="invalid api key")
+
+    doc_types = req.types or [
+        "daily",
+        "weekly",
+        "checkin",
+        "planejamento",
+        "replanejamento",
+        "benchmarking",
+    ]
+
+    for t in doc_types:
+        subprocess.run(
+            [PY, "smart_search_sa.py", "--client", req.client, "--type", t, "--export", req.export],
+            check=True,
+        )
+
+    subprocess.run([PY, "ingest_txt.py"], check=True)
+
+    return {"ok": True, "client": req.client, "types": doc_types, "export": req.export}
