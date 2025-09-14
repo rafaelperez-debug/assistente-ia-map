@@ -35,6 +35,15 @@ CLI = _resolve_cli_path()
 
 # --- Inicialização do app ---
 app = FastAPI(title="Assistente de Dados Runner", version="1.0.0")
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],          # depois podemos restringir ao domínio do AI Studio
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- CORS ---
 app.add_middleware(
